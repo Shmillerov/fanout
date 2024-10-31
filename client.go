@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coredns/coredns/plugin/pkg/proxy"
+	"github.com/coredns/coredns/plugin/pkg/transport"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	ot "github.com/opentracing/opentracing-go"
@@ -39,6 +41,7 @@ type client struct {
 	transport Transport
 	addr      string
 	net       string
+	proxy     *proxy.Proxy
 }
 
 // NewClient creates new client with specific addr and network
@@ -47,7 +50,9 @@ func NewClient(addr, net string) Client {
 		addr:      addr,
 		net:       net,
 		transport: NewTransport(addr),
+		proxy:     proxy.NewProxy("fanout", addr, transport.DNS),
 	}
+	a.proxy.Start(500 * time.Millisecond)
 	return a
 }
 
@@ -66,6 +71,10 @@ func (c *client) Endpoint() string {
 
 // Request sends request to DNS server
 func (c *client) Request(ctx context.Context, r *request.Request) (*dns.Msg, error) {
+	if c.proxy != nil && r != nil {
+		return c.proxy.Connect(ctx, *r, proxy.Options{})
+	}
+
 	span := ot.SpanFromContext(ctx)
 	if span != nil {
 		childSpan := span.Tracer().StartSpan("request", ot.ChildOf(span.Context()))

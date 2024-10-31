@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+var r = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 // WeightedRand selector picks elements randomly based on their weights
 type WeightedRand[T any] struct {
 	values      []T
@@ -37,7 +39,7 @@ func NewWeightedRandSelector[T any](values []T, weights []int) *WeightedRand[T] 
 		weights:     make([]int, len(weights)),
 		totalWeight: 0,
 		//nolint:gosec // it's overhead to use crypto/rand here
-		r: rand.New(rand.NewSource(time.Now().UnixNano())),
+		r: r,
 	}
 	// copy the underlying array values as we're going to modify content of slices
 	copy(wrs.values, values)
